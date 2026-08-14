@@ -7,5 +7,7 @@ The drift correction process uses Time Tool and EPICS signals to monitor timing 
 ## Repository Contents
 
 • 'Drift_Correction.py' - drift correction script
+
 • 'Drift_Correction_GUI.py' - PyDM monitoring and configuration GUI
+
 • 'watchdog3.py' - watchdog helper used by the correction script
