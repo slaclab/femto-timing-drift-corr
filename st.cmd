@@ -32,3 +32,4 @@ case $base in
 esac
 
 echo "Running script $script hutch $hutch"
+python $script $hutch || echo "Script exited with code $?"
