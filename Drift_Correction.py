@@ -1,8 +1,9 @@
 # 2603 - Drift Correction for LCLS-I
 import sys
 import time
-import numpy as np
+import traceback
 import watchdog3
+import numpy as np
 from epics import PV
 from typing import Dict, Tuple, List
 
@@ -27,8 +28,8 @@ def _f(v, d):
     except Exception:
         return d
 
-class TimeTool:
-    """Time Tool using EPICS '.LOW' / '.HIGH' limits embedded in bases; PID drift compensation."""
+class Drift_Correction:
+    """Drift correction using EPICS '.LOW' / '.HIGH' limits embedded in bases; PID drift compensation."""
     def __init__(self, system: str = 'FS14'):
         cfg = SYSTEMS.get(system)
         if not cfg:
@@ -38,14 +39,14 @@ class TimeTool:
         self.cfg = cfg
         self.Delay = 0.5
         self.Wait = 60
-        version = 'v0.91'
+        version = 'v0.92'
 
         # Core PVs
         self.TTALL_PV     = PV(cfg['TTALL']); self.TTALL_PV.wait_for_connection(1.0)
         self.Stage_PV     = PV(cfg['STAGE']); self.Stage_PV.wait_for_connection(1.0)
         self.IPM_PV       = PV(cfg['IPM']);   self.IPM_PV.wait_for_connection(1.0)
         self.LXT_PV       = PV(cfg['LXT']);     self.LXT_PV.wait_for_connection(1.0)
-        self.TXT_PV       = PV(cfg['TXT']);     self.LXT_PV.wait_for_connection(1.0)
+        self.TXT_PV       = PV(cfg['TXT']);     self.TXT_PV.wait_for_connection(1.0)
         self.Shutter_PV   = PV(cfg['SHUTTER']); self.Shutter_PV.wait_for_connection(1.0)
         self.TT_Drift_EN  = PV(cfg['DEV'] + 'TT_DRIFT_ENABLE'); self.TT_Drift_EN.wait_for_connection(1.0)
         self.TT_Script_EN = PV(cfg['DEV'] + 'matlab:31'); self.TT_Script_EN.wait_for_connection(1.0)
@@ -160,11 +161,11 @@ class TimeTool:
                 edge_count += 1
                 self.prev_pix_val = pix
                 last_good = time.monotonic()
-                print(f'\033[FMeasurement {edge_count} of {num_events_i} - TT Edge Position {edge_pos:.3f} ps    ')
+                # print(f'\033[FMeasurement {edge_count} of {num_events_i} - TT Edge Position {edge_pos:.3f} ps    ')
 
             if time.monotonic() - last_good > self.Wait:
                 self.prev_pix_val = pix
-                print(f"\033[F{time.strftime('%x %X')} - No valid meas in {self.Wait}s - "
+                print(f"{time.strftime('%x %X')} - No valid meas in {self.Wait}s - "
                       f"IPM:{ipm_ok}, Edge:{edge_ok}, Amp:{amp_ok}, FWHM:{fwhm_ok}, Pix:{pix_ok}, Stage:{stage_ok}, lxt_txt:{lxt_txt_ok}, Shutter:{shutter_ok} \n")
                 break
 
@@ -180,16 +181,18 @@ class TimeTool:
         mean = float(np.mean(self.Time_Tool_Edges))
         mean_ps = mean - self.Drift_Edge_Offset
         std_dev_ps = float(np.std(self.Time_Tool_Edges))
-        print(f'Mean of Edges = {mean:.6f}, Mean of Edges - Offset = {mean_ps:.6f} ps, Standard Deviation = {1000*std_dev_ps:.1f} fs \n')
+        # print(f'Mean of Edges = {mean:.6f}, Mean of Edges - Offset = {mean_ps:.6f} ps, Standard Deviation = {1000*std_dev_ps:.1f} fs \n')
+        print(f"{time.strftime('%x %X')} - Measurements: {len(self.Time_Tool_Edges)}, Mean: {mean:.3f} ps, Error: {mean_ps:.3f} ps, Std Dev: {1000 * std_dev_ps:.1f} fs") #better print?
+
         self.drift['Drift_Ave_Edge_Position'].put(mean, wait=True, timeout=1.0)                # write mean edge position (ps)
         self.drift['Drift_Std_Dev_Edge_Position'].put(std_dev_ps, wait=True, timeout=1.0)            # write std dev edge position (ps)
 
         if self.TT_Drift_EN.get(timeout=1.0) != 1 or self.TT_Script_EN.get(timeout=1.0) != 1:
-            print(f'\033[F{time.strftime('%x %X')} - Drift Correction or Drift Script Disabled. No Correction Applied. \n')
+            print(f'{time.strftime('%x %X')} - Drift Correction or Drift Script Disabled. No Correction Applied. \n')
             return
 
         if round(self.LXT_PV.get(timeout=1.0), 13) != -(round(self.TXT_PV.get(timeout=1.0), 13)):
-            print(f'\033[F{time.strftime('%x %X')} - lxt() != -txt(). No Correction Applied. \n')
+            print(f'{time.strftime('%x %X')} - lxt() != -txt(). No Correction Applied. \n')
             return
 
         if abs(mean_ps) > self.Drift_Adjust_Threshold:
@@ -211,29 +214,30 @@ class TimeTool:
             delta = p_gain * error_ns + i_gain * self.integral_error + d_gain * derivative
             new_ns = old_ns - delta
 
-            print(f'\033[FPID -> P:{p_gain:.4f}, I:{i_gain:.4f}, D:{d_gain:.4f}, Err(ns):{error_ns:.6f}, Integ:{self.integral_error:.6f}, Deriv:{derivative:.6f}, P*Err:{p_gain * error_ns:.8f}, I*Integ:{i_gain * self.integral_error:.8f}, D*Deriv:{d_gain * derivative:.8f}')
+            # print(f'PID -> P:{p_gain:.4f}, I:{i_gain:.4f}, D:{d_gain:.4f}, Err(ns):{error_ns:.6f}, Integ:{self.integral_error:.6f}, Deriv:{derivative:.6f}, P*Err:{p_gain * error_ns:.8f}, I*Integ:{i_gain * self.integral_error:.8f}, D*Deriv:{d_gain * derivative:.8f}')
             print(f'{time.strftime('%x %X')} - Old Drift Correction = {old_ns:.6f} ns, New = {new_ns:.6f} ns, Delta = {delta:.6f} ns \n')
 
             self.drift['Drift Correction Value'].put(new_ns, wait=True, timeout=1.0)
             self.prev_error_ns = error_ns
             self._last_pid_t = now
         else:
-            print(f'\033[F{time.strftime('%x %X')} - Mean of Edges - Offset ({abs(mean_ps):.4f}) < Adjustment Threshold ({self.Drift_Adjust_Threshold}). No Correction Applied. \n')
+            print(f'{time.strftime('%x %X')} - Mean of Edges - Offset ({abs(mean_ps):.4f}) < Adjustment Threshold ({self.Drift_Adjust_Threshold}). No Correction Applied. \n')
             self.integral_error = 0.0           # Reset integrator
 
 def run():
     system = sys.argv[1] if len(sys.argv) > 1 else 'FS14'
-    tool = TimeTool(system)
-    while tool.W.error == 0:
-        tool.W.check()
-        time.sleep(tool.Delay)
+    dc = Drift_Correction(system)
+    while dc.W.error == 0:
+        dc.W.check()
+        time.sleep(dc.Delay)
         try:
-            tool.read_write()
+            dc.read_write()
         except Exception as e:
             print(f'Crashed: {e}, restarting')
-            time.sleep(5*tool.Wait)
-            tool = TimeTool(system)
-            if tool.W.error:
+            traceback.print_exc()
+            time.sleep(5*dc.Wait)
+            dc = Drift_Correction(system)
+            if dc.W.error:
                 return
 
 if __name__ == "__main__":
