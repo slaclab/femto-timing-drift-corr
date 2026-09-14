@@ -182,7 +182,7 @@ class Drift_Correction:
         mean_ps = mean - self.Drift_Edge_Offset
         std_dev_ps = float(np.std(self.Time_Tool_Edges))
         # print(f'Mean of Edges = {mean:.6f}, Mean of Edges - Offset = {mean_ps:.6f} ps, Standard Deviation = {1000*std_dev_ps:.1f} fs \n')
-        print(f"{time.strftime('%x %X')} - Measurements: {len(self.Time_Tool_Edges)}, Mean: {mean:.3f} ps, Error: {mean_ps:.3f} ps, Std Dev: {1000 * std_dev_ps:.1f} fs") #better print?
+        print(f"{time.strftime('%x %X')} - Measurements: {len(self.Time_Tool_Edges)}, Mean: {mean:.6f} ps, Mean - Offset: {mean_ps:.6f} ps, Std Dev: {1000 * std_dev_ps:.1f} fs")
 
         self.drift['Drift_Ave_Edge_Position'].put(mean, wait=True, timeout=1.0)                # write mean edge position (ps)
         self.drift['Drift_Std_Dev_Edge_Position'].put(std_dev_ps, wait=True, timeout=1.0)            # write std dev edge position (ps)
