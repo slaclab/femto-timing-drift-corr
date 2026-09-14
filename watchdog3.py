@@ -21,22 +21,22 @@ class watchdog():
             self.value = self.pv.value
             if self.value < 0:#command to exit programs
                 self.error = 1 #exit program
-                print('watchdog pv negative - exiting')
+                print('Watchdog PV negative - exiting')
                 return
-            print('initializing watchdog')
+            print('Initializing Watchdog')
             time.sleep(1) # wait 1 second1 for an update
             self.pv.get(timeout=1.0)
         except:
-            print('cant write watchdog pv, exiting')
+            print('Can\'t write watchdog PV, exiting')
             self.error = 1
             return
         if self.pv.value < 0:#command to exit programs
             self.error = 1 #exit program
-            print('watchdog pv negative - exiting')
+            print('Watchdog PV negative - exiting')
             return
         if self.pv.value != self.value:
             self.error = 1
-            print('another program is incrementing the watchdog')
+            print('Another program is incrementing the watchdog')
             return
         self.error = 0  # OK to continue
 
@@ -44,16 +44,16 @@ class watchdog():
         try:
             self.pv.get(timeout=1.0)
         except:
-            print('not able to read watchdog PV, continuing to try')
+            print('Not able to read watchdog PV, continuing to try')
             self.error = 0  # not an error (at least for now)
             return
         if self.pv.value < 0:
             self.error = 1 #exit program
-            print('watchdog pv negative - exiting')
+            print('Watchdog PV negative - exiting')
             return
         if self.pv.value != self.value:  # value changed
             self.error = 1
-            print('another program is incrementing the watchdog')
+            print('Another program is incrementing the watchdog')
             return
         self.error = 0
         self.value = self.pv.value+1
