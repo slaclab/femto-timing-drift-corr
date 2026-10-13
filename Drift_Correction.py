@@ -98,7 +98,7 @@ class Drift_Correction:
         self.prev_error_ns = 0.0
         self._last_pid_t = time.monotonic()
         self.prev_pix_val = 0.0
-        print(f'{time.strftime("%x %X")} - Drift Correction Script for {system} Started ({version}) ... \n')
+        print(f'{time.strftime("%x %X")} - Drift Correction Script for {system} Started ({version}) ...')
 
     def read_write(self):
 
@@ -166,7 +166,7 @@ class Drift_Correction:
             if time.monotonic() - last_good > self.Wait:
                 self.prev_pix_val = pix
                 print(f"{time.strftime('%x %X')} - No valid meas in {self.Wait}s - "
-                      f"IPM:{ipm_ok}, Edge:{edge_ok}, Amp:{amp_ok}, FWHM:{fwhm_ok}, Pix:{pix_ok}, Stage:{stage_ok}, lxt_txt:{lxt_txt_ok}, Shutter:{shutter_ok} \n")
+                      f"IPM:{ipm_ok}, Edge:{edge_ok}, Amp:{amp_ok}, FWHM:{fwhm_ok}, Pix:{pix_ok}, Stage:{stage_ok}, lxt_txt:{lxt_txt_ok}, Shutter:{shutter_ok}")
                 break
 
             if time.monotonic() - wd_t > 0.5:
@@ -188,11 +188,11 @@ class Drift_Correction:
         self.drift['Drift_Std_Dev_Edge_Position'].put(std_dev_ps, wait=True, timeout=1.0)            # write std dev edge position (ps)
 
         if self.TT_Drift_EN.get(timeout=1.0) != 1 or self.TT_Script_EN.get(timeout=1.0) != 1:
-            print(f'{time.strftime('%x %X')} - Drift Correction or Drift Script Disabled. No Correction Applied. \n')
+            print(f'{time.strftime('%x %X')} - Drift Correction or Drift Script Disabled. No Correction Applied.')
             return
 
         if round(self.LXT_PV.get(timeout=1.0), 13) != -(round(self.TXT_PV.get(timeout=1.0), 13)):
-            print(f'{time.strftime('%x %X')} - lxt() != -txt(). No Correction Applied. \n')
+            print(f'{time.strftime('%x %X')} - lxt() != -txt(). No Correction Applied.')
             return
 
         if abs(mean_ps) > self.Drift_Adjust_Threshold:
@@ -215,13 +215,13 @@ class Drift_Correction:
             new_ns = old_ns - delta
 
             # print(f'PID -> P:{p_gain:.4f}, I:{i_gain:.4f}, D:{d_gain:.4f}, Err(ns):{error_ns:.6f}, Integ:{self.integral_error:.6f}, Deriv:{derivative:.6f}, P*Err:{p_gain * error_ns:.8f}, I*Integ:{i_gain * self.integral_error:.8f}, D*Deriv:{d_gain * derivative:.8f}')
-            print(f'{time.strftime('%x %X')} - Old Drift Correction = {old_ns:.6f} ns, New = {new_ns:.6f} ns, Delta = {delta:.6f} ns \n')
+            print(f'{time.strftime('%x %X')} - Old Drift Correction = {old_ns:.6f} ns, New = {new_ns:.6f} ns, Delta = {delta:.6f} ns')
 
             self.drift['Drift Correction Value'].put(new_ns, wait=True, timeout=1.0)
             self.prev_error_ns = error_ns
             self._last_pid_t = now
         else:
-            print(f'{time.strftime('%x %X')} - Mean of Edges - Offset ({abs(mean_ps):.4f}) < Adjustment Threshold ({self.Drift_Adjust_Threshold}). No Correction Applied. \n')
+            print(f'{time.strftime('%x %X')} - Mean of Edges - Offset ({abs(mean_ps):.4f}) < Adjustment Threshold ({self.Drift_Adjust_Threshold}). No Correction Applied.')
             self.integral_error = 0.0           # Reset integrator
 
 def run():
