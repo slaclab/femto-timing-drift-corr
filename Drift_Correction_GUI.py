@@ -156,6 +156,10 @@ class SlowLabel(QtWidgets.QLabel, ChannelMixin):
     def channel(self, address): self.set_channel(address.replace("ca://",""), self._on_value)
 
     def assign_limits(self, lo_addr, hi_addr):
+        if hasattr(self, "_low_chan") and self._low_chan:
+            self._low_chan.disconnect()
+        if hasattr(self, "_high_chan") and self._high_chan:
+            self._high_chan.disconnect()
         lo = lo_addr.replace("ca://",""); hi = hi_addr.replace("ca://","")
         self._low_chan  = PyDMChannel(address=lo, value_slot=self._on_low)
         self._high_chan = PyDMChannel(address=hi, value_slot=self._on_high)
@@ -168,10 +172,13 @@ class SlowLabel(QtWidgets.QLabel, ChannelMixin):
             color = GREEN
             if self._low is not None and self._high is not None:
                 lo, hi = float(self._low), float(self._high)
-                if lo > hi: lo, hi = hi, lo
                 span = hi - lo
-                if not (lo <= v <= hi): color = RED
-                elif span > 0 and min(v - lo, hi - v) / span <= WARN_RATIO: color = YELLOW
+                if lo >= hi:
+                    color = RED
+                elif not (lo < v < hi):
+                    color = RED
+                elif min(v - lo, hi - v) / span <= WARN_RATIO:
+                    color = YELLOW
             self._apply(color)
         except Exception:
             self.setText(str(self._latest))
@@ -226,12 +233,12 @@ class StatusButton(QtWidgets.QPushButton, ChannelMixin):
 
     def update_state(self, value):
         try: self.setText("Out" if int(value) == 0 else "In")
-        except Exception: self.setText("Out")
+        except Exception: self.setText("Unknown")
 
 class StatusButton1(QtWidgets.QPushButton, ChannelMixin):
     def __init__(self, pv, width):
         QtWidgets.QPushButton.__init__(self, "OK"); ChannelMixin.__init__(self)
-        self.setFixedWidth(width); self.setCursor(QtCore.Qt.ArrowCursor); self.setToolTip("Shutter status (read-only)")
+        self.setFixedWidth(width); self.setCursor(QtCore.Qt.ArrowCursor); self.setToolTip("Stage status (read-only)")
         self.set_pv(pv)
 
     def mousePressEvent(self, e: QtGui.QMouseEvent): e.ignore()  # ignore clicks
@@ -240,7 +247,7 @@ class StatusButton1(QtWidgets.QPushButton, ChannelMixin):
 
     def update_state(self, value):
         try: self.setText("OK" if int(value) == 0 else "Bad")
-        except Exception: self.setText("OK")
+        except Exception: self.setText("Unknown")
 
 # ---------------- Main Display ----------------
 class LimitsScreen(Display):
